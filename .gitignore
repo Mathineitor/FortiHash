@@ -1,19 +1,20 @@
 #Entorno virtual
- venv/
+venv/
 
 #Caches de python
 
- __pycache__/
- *.py[cod]
+__pycache__/
+*.py[cod]
 
 #Archivos de datos cifrados locales , Bovedas
 
- *.enc
- *.db
- vault.json
+*.enc
+*.db
+vault.json
 
 #Archivos de entorno y cofiguracion local
 
- .env
- .vscode
- .idea/
+.env
+.vscode
+.idea/
+Razon.txt
