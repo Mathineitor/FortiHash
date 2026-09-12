@@ -28,6 +28,7 @@ FortiHash/
 ├── LICENSE                  # Licencia de código abierto (MIT)
 ├── README.md                # Documentación técnica del proyecto
 └── requirements.txt         # Dependencias del proyecto
+
 Características Principales
 Cifrado AES‑256 con claves derivadas mediante PBKDF2HMAC.
 
@@ -54,7 +55,7 @@ Instalación y Configuración
 Clonar el repositorio:
 
 bash
-git clone https://github.com/TU_USUARIO/FortiHash.git
+git clone         
 cd FortiHash
 Crear y activar entorno virtual:
 
