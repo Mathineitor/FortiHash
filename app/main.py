@@ -15,7 +15,7 @@ from app.analyzer import analyze_strength, check_pwned_k_anonymity
 app = FastAPI(
     title="FortiHash API",
     description="(Backend)API local para generación, análisis y almacenamiento seguro de contraseñas.",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # Ruta del archivo de persistencia cifrada
@@ -37,9 +37,10 @@ class AnalyzeRequest(BaseModel):
 
 
 class VaultItem(BaseModel):
-    service: str = Field(..., min_length=1, description="Nombre del servicio o sitio")
-    username: str = Field(..., min_length=1, description="Usuario o correo asociado")
-    password: str = Field(..., min_length=1, description="Contraseña")
+    service: str = Field(..., min_length=1, description="Nombre del servicio")
+    username: str = Field(..., min_length=1, description="Correo o usuario asociado")
+    password: str = Field(..., min_length=1, description="Contraseña guardada")
+    description: Optional[str] = Field(default="", description="Notas o descripción")
 
 
 class VaultSaveRequest(BaseModel):
@@ -55,9 +56,8 @@ class VaultUnlockRequest(BaseModel):
 # Endpoints de la API REST
 # ------------------------------------------------------------------
 
-@app.post("/api/generate", tags=["Crypto"])
+@app.post("/api/generate")
 def api_generate_password(payload: GenerateRequest):
-    """Genera una contraseña criptográficamente segura (CS-PRNG)."""
     try:
         pwd = generate_secure_password(
             length=payload.length,
@@ -69,52 +69,67 @@ def api_generate_password(payload: GenerateRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
-@app.post("/api/analyze", tags=["Analyzer"])
+@app.post("/api/analyze")
 def api_analyze_password(payload: AnalyzeRequest):
-    """Evalúa la entropía en bits, fuerza por Regex y verifica brechas en HIBP."""
     analysis = analyze_strength(payload.password)
     pwned_count = check_pwned_k_anonymity(payload.password)
     analysis["pwned_count"] = pwned_count
     return analysis
 
-
-@app.post("/api/vault/save", tags=["Vault"])
-def api_save_vault(payload: VaultSaveRequest):
-    """Cifra los datos con AES-256 (PBKDF2) y los persiste localmente en vault.enc."""
-    data_dict = [item.dict() for item in payload.items]
-    encrypted_bytes = encrypt_vault_data(payload.master_password, data_dict)
-    
-    try:
-        with open(VAULT_FILE, "wb") as f:
-            f.write(encrypted_bytes)
-        return {"status": "success", "message": "Bóveda guardada y cifrada correctamente."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error guardando el archivo: {str(e)}")
-
-
-@app.post("/api/vault/unlock", tags=["Vault"])
+@app.post("/api/vault/unlock")
 def api_unlock_vault(payload: VaultUnlockRequest):
-    """Lee el archivo cifrado y lo descifra con la clave maestra proporcionada."""
     if not os.path.exists(VAULT_FILE):
         return {"status": "empty", "items": []}
-    
     try:
         with open(VAULT_FILE, "rb") as f:
             encrypted_bytes = f.read()
-        
         items = decrypt_vault_data(payload.master_password, encrypted_bytes)
         return {"status": "success", "items": items}
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+@app.post("/api/vault/save")
+def api_save_vault(payload: VaultSaveRequest):
+    data_dict = [item.dict() for item in payload.items]
+    encrypted_bytes = encrypt_vault_data(payload.master_password, data_dict)
+    try:
+        with open(VAULT_FILE, "wb") as f:
+            f.write(encrypted_bytes)
+        return {"status": "success", "message": "Bóveda cifrada y guardada correctamente."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error leyendo la bóveda: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/vault/change-master")
+def api_change_master(payload: ChangeMasterKeyRequest):
+    """Reemplaza la contraseña maestra re-cifrando la bóveda existente."""
+    if not os.path.exists(VAULT_FILE):
+        # Si no existe, crea una bóveda vacía con la nueva contraseña maestra
+        encrypted_bytes = encrypt_vault_data(payload.new_master_password, [])
+        with open(VAULT_FILE, "wb") as f:
+            f.write(encrypted_bytes)
+        return {"status": "success", "message": "Nueva contraseña maestra configurada."}
 
-# Serve static files for frontend if index.html exists
+    try:
+        with open(VAULT_FILE, "rb") as f:
+            encrypted_bytes = f.read()
+        items = decrypt_vault_data(payload.old_master_password, encrypted_bytes)
+        
+        # Re-cifrar con la nueva contraseña
+        new_encrypted_bytes = encrypt_vault_data(payload.new_master_password, items)
+        with open(VAULT_FILE, "wb") as f:
+            f.write(new_encrypted_bytes)
+        return {"status": "success", "message": "Contraseña maestra actualizada y bóveda re-cifrada."}
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail="La contraseña maestra actual es incorrecta.")
+
+@app.delete("/api/vault/clear")
+def api_clear_vault():
+    if os.path.exists(VAULT_FILE):
+        os.remove(VAULT_FILE)
+    return {"status": "success", "message": "Bóveda eliminada por completo."}
+
 if os.path.exists("app/static"):
     app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
     @app.get("/")
     def read_index():
         return FileResponse("app/static/index.html")

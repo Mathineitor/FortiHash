@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FortiHash — Gestor de Contraseñas Local</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        base: { 900: '#0B0F14', 800: '#121821', 700: '#1A222E', 600: '#2A3441' },
+                        brass: { 500: '#C89B4A', 400: '#DAB268', 300: '#E9CE9B' },
+                        data: { 500: '#5FB3B3', 400: '#7FC6C6' },
+                        ok: { 500: '#4CAF7D' },
+                        warn: { 500: '#D9A441' },
+                        bad: { 500: '#E0605A' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .data-text {
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.02em;
+        }
+
+        input:focus-visible,
+        button:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+            outline: 2px solid #C89B4A;
+            outline-offset: 2px;
+        }
+
+        .tab-btn {
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn.active {
+            border-bottom-color: #C89B4A;
+            color: #DAB268;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2A3441;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="bg-base-900 text-slate-200 min-h-screen font-sans antialiased">
+
+    <!-- Franja de estado: fase de prueba -->
+    <div
+        class="bg-warn-500/10 border-b border-warn-500/30 text-warn-500 text-xs md:text-sm py-2 px-4 md:px-8 flex items-center justify-center gap-2 text-center">
+        <span>⚠</span>
+        <span><strong>Fase de prueba (Beta).</strong> Los datos se guardan solo en tu equipo. Aún puede haber errores —
+            evita usarlo como tu único gestor de contraseñas por ahora.</span>
+    </div>
+
+    <div class="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
+
+        <!-- Header -->
+        <header class="border-b border-base-600 pb-5 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🔐</span>
+                    <h1 class="text-2xl font-bold text-brass-400 tracking-tight">FortiHash</h1>
+                    <span
+                        class="text-[10px] uppercase tracking-wide bg-brass-500/15 text-brass-400 border border-brass-500/30 px-2 py-0.5 rounded">Beta</span>
+                </div>
+                <p class="text-sm text-slate-400 mt-1">Genera, revisa y guarda tus contraseñas — todo cifrado y solo en
+                    tu computadora.</p>
+            </div>
+            <span
+                class="text-xs bg-ok-500/10 text-ok-500 border border-ok-500/30 px-3 py-1.5 rounded-full whitespace-nowrap">
+                ● Ejecutándose en 127.0.0.1 (nada sale de tu equipo)
+            </span>
+        </header>
+
+        <!-- Tabs -->
+        <nav class="flex gap-6 border-b border-base-600 text-sm">
+            <button onclick="switchTab('generator')" id="tabBtn-generator"
+                class="tab-btn active pb-2 font-medium text-slate-200">Crear y revisar una contraseña</button>
+            <button onclick="switchTab('vault')" id="tabBtn-vault"
+                class="tab-btn pb-2 font-medium text-slate-400">Bóveda cifrada</button>
+        </nav>
+
+        <!-- ============ TAB: GENERADOR / ANALIZADOR ============ -->
+        <section id="tab-generator" class="bg-base-800 border border-base-600 rounded p-5 space-y-4">
+            <div>
+                <h2 class="text-base font-semibold text-slate-100">Crear y revisar una contraseña</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Genera una contraseña aleatoria o pega una que ya usas para ver
+                    qué tan segura es.</p>
+            </div>
+
+            <div>
+                <label for="passInput" class="block text-xs mb-1 text-slate-400">Contraseña</label>
+                <div class="flex gap-2">
+                    <input type="text" id="passInput"
+                        class="w-full bg-base-900 border border-base-600 rounded px-3 py-2 text-sm text-white data-text focus:outline-none focus:border-brass-500"
+                        placeholder="Escribe una contraseña o genera una nueva">
+                    <button onclick="copyToClipboard(document.getElementById('passInput').value)"
+                        class="bg-base-700 hover:bg-base-600 border border-base-600 text-slate-200 px-3 py-2 rounded text-xs shrink-0">Copiar</button>
+                </div>
+            </div>
+
+            <div class="space-y-3 text-xs border-t border-base-600 pt-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">Longitud</span>
+                    <span class="text-brass-400 data-text font-medium" id="lengthVal">16</span>
+                </div>
+                <input type="range" id="lengthRange" min="8" max="64" value="16" class="w-full accent-brass-500"
+                    oninput="document.getElementById('lengthVal').innerText = this.value">
+                <div class="grid grid-cols-3 gap-2 pt-1 text-slate-300">
+                    <label class="flex items-center gap-1.5"><input type="checkbox" id="chkDigits"
+                            class="accent-brass-500" checked> Números</label>
+                    <label class="flex items-center gap-1.5"><input type="checkbox" id="chkSymbols"
+                            class="accent-brass-500" checked> Símbolos</label>
+                    <label class="flex items-center gap-1.5"><input type="checkbox" id="chkUpper"
+                            class="accent-brass-500" checked> Mayúsculas</label>
+                </div>
+                <button onclick="generatePassword()"
+                    class="w-full mt-2 bg-brass-500 text-base-900 font-semibold py-2 rounded hover:bg-brass-400 transition">Generar
+                    contraseña aleatoria</button>
+            </div>
+
+            <div id="metricsArea" class="border-t border-base-600 pt-3 space-y-2 text-xs hidden">
+                <div class="flex justify-between items-baseline">
+                    <span class="text-slate-400">Entropía: <strong id="entropyVal"
+                            class="data-text text-data-400">0</strong> bits</span>
+                    <span class="text-slate-400">Fuerza: <strong id="scoreVal" class="text-slate-100">-</strong></span>
+                </div>
+                <div class="w-full bg-base-600 h-1.5 rounded-full overflow-hidden">
+                    <div id="entropyBar" class="h-full bg-bad-500 w-0 transition-all duration-300"></div>
+                </div>
+                <p class="text-[11px] text-slate-500">La entropía mide qué tan difícil es de adivinar. A más bits, más
+                    segura.</p>
+                <div id="pwnedAlert"
+                    class="p-2 rounded bg-bad-500/10 border border-bad-500/40 text-bad-500 text-xs hidden"></div>
+            </div>
+        </section>
+
+        <!-- ============ TAB: BÓVEDA ============ -->
+        <section id="tab-vault" class="hidden">
+
+            <!-- Overlay de bloqueo: pide la contraseña maestra -->
+            <div id="vaultLockOverlay" class="bg-base-800 border border-base-600 rounded p-6 space-y-4 text-center">
+                <div class="text-3xl">🔒</div>
+                <div>
+                    <h2 class="text-base font-semibold text-slate-100">Bóveda bloqueada</h2>
+                    <p class="text-xs text-slate-400 mt-1">Ingresa tu contraseña maestra para desbloquear. Si es la
+                        primera vez, esa misma contraseña quedará como tu clave maestra.</p>
+                </div>
+                <div class="max-w-xs mx-auto space-y-2 text-left">
+                    <label for="masterAuthInput" class="block text-xs text-slate-400">Contraseña maestra</label>
+                    <input type="password" id="masterAuthInput"
+                        class="w-full bg-base-900 border border-base-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brass-500"
+                        placeholder="••••••••••••">
+                    <button onclick="unlockVault()"
+                        class="w-full bg-brass-500 hover:bg-brass-400 text-base-900 font-semibold py-2 rounded text-sm">Desbloquear
+                        bóveda</button>
+                </div>
+                <p class="text-[11px] text-slate-500">La contraseña maestra nunca se guarda tal cual — solo se usa para
+                    cifrar y descifrar en el momento.</p>
+            </div>
+
+            <!-- Contenido desbloqueado -->
+            <div id="vaultContent" class="hidden space-y-5">
+
+                <!-- Barra de sesión -->
+                <div
+                    class="bg-base-800 border border-base-600 rounded px-4 py-2.5 flex items-center justify-between text-xs">
+                    <span class="text-slate-400">Sesión activa — se bloqueará automáticamente en <strong
+                            id="sessionTimer" class="data-text text-brass-400">60s</strong></span>
+                    <div class="flex gap-2">
+                        <button onclick="lockVaultSession()"
+                            class="bg-base-700 hover:bg-base-600 border border-base-600 text-slate-300 px-2.5 py-1 rounded">Bloquear
+                            sesión</button>
+                        <button onclick="changeMasterKey()"
+                            class="bg-base-700 hover:bg-base-600 border border-base-600 text-slate-300 px-2.5 py-1 rounded">Cambiar
+                            contraseña maestra</button>
+                    </div>
+                </div>
+
+                <!-- Formulario para Guardar -->
+                <div class="bg-base-800 border border-base-600 rounded p-5 space-y-3">
+                    <h2 class="text-base font-semibold text-slate-100">Guardar una credencial</h2>
+                    <p class="text-xs text-slate-400 -mt-1">Completa servicio, usuario, la contraseña a guardar y una
+                        breve descripción.</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="space-y-1">
+                            <label for="inputService" class="block text-[11px] text-slate-400">Servicio</label>
+                            <input type="text" id="inputService" placeholder="Ej. GitHub, Gmail, Banco"
+                                class="w-full bg-base-900 border border-base-600 rounded px-3 py-1.5 text-xs text-white">
+                        </div>
+                        <div class="space-y-1">
+                            <label for="inputUser" class="block text-[11px] text-slate-400">Usuario o correo</label>
+                            <input type="text" id="inputUser" placeholder="usuario@ejemplo.com"
+                                class="w-full bg-base-900 border border-base-600 rounded px-3 py-1.5 text-xs text-white">
+                        </div>
+                        <div class="space-y-1">
+                            <label for="inputPass" class="block text-[11px] text-slate-400">Contraseña a guardar</label>
+                            <input type="text" id="inputPass" placeholder="Contraseña de esta cuenta"
+                                class="w-full bg-base-900 border border-base-600 rounded px-3 py-1.5 text-xs text-white data-text">
+                        </div>
+                        <div class="space-y-1">
+                            <label for="inputDesc" class="block text-[11px] text-slate-400">Descripción</label>
+                            <input type="text" id="inputDesc" placeholder="Ej. Cuenta personal, correo de trabajo"
+                                class="w-full bg-base-900 border border-base-600 rounded px-3 py-1.5 text-xs text-white">
+                        </div>
+                    </div>
+
+                    <button onclick="saveNewCredential()"
+                        class="w-full mt-1 bg-ok-500 hover:brightness-110 text-base-900 font-semibold py-2 rounded text-xs transition">Guardar
+                        credencial</button>
+                </div>
+
+                <!-- Lista de Registros -->
+                <div class="bg-base-800 border border-base-600 rounded p-5 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-semibold text-slate-100">Tus credenciales</h2>
+                        <span class="text-[11px] text-slate-500">Solo puedes copiarlas, no verlas en texto</span>
+                    </div>
+                    <div id="vaultItemsContainer" class="space-y-2 max-h-64 overflow-y-auto"></div>
+                </div>
+
+                <!-- Zona de peligro -->
+                <div class="bg-bad-500/5 border border-bad-500/30 rounded p-5 space-y-3">
+                    <h2 class="text-sm font-semibold text-bad-500">Zona de peligro</h2>
+                    <p class="text-[11px] text-slate-400">Borrar una credencial individual se hace desde el botón
+                        "Borrar" de cada tarjeta arriba. La opción de aquí borra la bóveda completa — solo para
+                        emergencias extremas.</p>
+                    <button onclick="clearEntireVault()"
+                        class="w-full bg-bad-500 hover:brightness-110 text-white font-semibold py-2 rounded text-xs transition">Borrar
+                        TODA la bóveda permanentemente</button>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center text-[11px] text-slate-600 pt-2 pb-4">
+            FortiHash — herramienta local de código abierto en desarrollo. Todo el cifrado ocurre en tu equipo.
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
