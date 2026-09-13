@@ -229,8 +229,18 @@ async function changeMasterKey() {
         alert("¡Contraseña Maestra cambiada con éxito! Inicia sesión con tu nueva clave.");
         lockVaultSession();
     } else {
-        alert(data.detail || "Error al actualizar la contraseña maestra.");
+        alert(extractErrorMessage(data));
     }
+}
+
+// Convierte cualquier forma de "detail" de FastAPI en texto legible
+function extractErrorMessage(data) {
+    if (!data || !data.detail) return "Error al actualizar la contraseña maestra.";
+    if (typeof data.detail === 'string') return data.detail;
+    if (Array.isArray(data.detail)) {
+        return data.detail.map(e => e.msg || JSON.stringify(e)).join('\n');
+    }
+    return JSON.stringify(data.detail);
 }
 
 function renderVault() {

@@ -50,6 +50,10 @@ class VaultSaveRequest(BaseModel):
 
 class VaultUnlockRequest(BaseModel):
     master_password: str = Field(..., min_length=6, description="Clave maestra")
+    
+class ChangeMasterKeyRequest(BaseModel):
+    old_master_password: str = Field(..., min_length=6, description="Clave maestra actual")
+    new_master_password: str = Field(..., min_length=6, description="Nueva clave maestra")
 
 
 # ------------------------------------------------------------------
